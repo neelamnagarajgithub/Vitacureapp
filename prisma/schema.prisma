@@ -1,18 +1,11 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-generator client {
-  provider = "prisma-client-js"
-}
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+generator client {
+  provider = "prisma-client-js"
+}
 
 model User {
   id        Int       @id @default(autoincrement())
@@ -24,11 +17,10 @@ model User {
   role      Role
   createdAt DateTime  @default(now())
   profile   Profile?
-  services  UserService[]
-  appointmentsAsPatient Appointment[] @relation("PatientAppointments")
-  appointmentsAsCaregiver Appointment[] @relation("CaregiverAppointments")
+  patients  Patient[]
   reviewsGiven Review[] @relation("PatientReviews")
   reviewsReceived Review[] @relation("CaregiverReviews")
+  userServices UserService[]
 }
 
 model Profile {
@@ -41,6 +33,25 @@ model Profile {
   availability    Json?
   createdAt       DateTime @default(now())
   user            User     @relation(fields: [userId], references: [id])
+}
+
+model Patient {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @unique
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id])
+  documents Document[]
+  appointments Appointment[] @relation("PatientAppointments")
+}
+
+model Document {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  type        String
+  number      String
+  expiryDate  DateTime?
+  createdAt   DateTime  @default(now())
+  patient     Patient?  @relation(fields: [userId], references: [id], map: "Document_patient_fkey")
 }
 
 model Service {
@@ -64,15 +75,13 @@ model UserService {
 model Appointment {
   id              Int       @id @default(autoincrement())
   patientId       Int
-  caregiverId     Int
   serviceId       Int
   appointmentDate DateTime
   durationHours   Int
   status          AppointmentStatus @default(PENDING)
   createdAt       DateTime @default(now())
-  patient         User     @relation("PatientAppointments", fields: [patientId], references: [id])
-  caregiver       User     @relation("CaregiverAppointments", fields: [caregiverId], references: [id])
-  service         Service  @relation(fields: [serviceId], references: [id])
+  patient         Patient   @relation("PatientAppointments", fields: [patientId], references: [id])
+  service         Service   @relation(fields: [serviceId], references: [id])
 }
 
 model Review {
@@ -87,8 +96,6 @@ model Review {
 }
 
 enum Role {
-  NURSE
-  CAREGIVER
   PATIENT
 }
 
